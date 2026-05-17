@@ -1,40 +1,8 @@
 import logging
 import requests
 import json
-import os
-import threading
-import time
-from http.server import HTTPServer, BaseHTTPRequestHandler
-
-# Простой веб-сервер для предотвращения сна
-class HealthCheckHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.end_headers()
-        self.wfile.write(b'Bot is running!')
-    
-    def log_message(self, format, *args):
-        pass
-
-def run_health_server():
-    port = int(os.environ.get('PORT', 8080))
-    server = HTTPServer(('0.0.0.0', port), HealthCheckHandler)
-    print(f"Health check server on port {port}")
-    server.serve_forever()
-
-# И в методе run() добавьте перед запуском бота:
-def run(self):
-    # Запускаем health check сервер
-    health_thread = threading.Thread(target=run_health_server)
-    health_thread.daemon = True
-    health_thread.start()
-    
-    # ... остальной код запуска бота
-from http.server import HTTPServer, BaseHTTPRequestHandler
-from threading import Thread
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
-from keep_alive import run_keep_aliv
 
 # Настройка логирования
 logging.basicConfig(
@@ -44,38 +12,19 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ===== КОНФИГУРАЦИЯ =====
-BOT_TOKEN = "8678518649:AAHjfB6Z9QTytmSRej2hDbV3hxGbokY1wdc"
+BOT_TOKEN = "YOUR_BOT_TOKEN_HERE"
 GIPHY_API_KEY = "YOUR_GIPHY_API_KEY"
-CREATOR_USER_ID = 7969057973  # Ваш Telegram ID
-CREATOR_USERNAME = "lilmopss"  # Ваш username без @
+CREATOR_USER_ID = 123456789  # Ваш Telegram ID
+CREATOR_USERNAME = "your_username"  # Ваш username без @
 
-# Настройки порта (PythonAnywhere использует порт из переменной окружения)
-PORT = int(os.environ.get('PORT', 8080))
-
-class StarsAppHandler(BaseHTTPRequestHandler):
-    """HTTP обработчик для мини-приложения Stars"""
-    
-    def do_GET(self):
-        if self.path == '/' or self.path == '/stars':
-            self.send_response(200)
-            self.send_header('Content-type', 'text/html; charset=utf-8')
-            self.end_headers()
-            
-            html_content = self.get_stars_html()
-            self.wfile.write(html_content.encode('utf-8'))
-        else:
-            self.send_response(404)
-            self.end_headers()
-            self.wfile.write(b'Not Found')
-    
-    def get_stars_html(self):
-        return """
+# HTML для мини-приложения Stars
+STARS_APP_HTML = """
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>SMALLGIF'S - Поддержка создателя</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SMALLGIF'S - Поддержка</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         * {
@@ -85,66 +34,57 @@ class StarsAppHandler(BaseHTTPRequestHandler):
         }
         
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            padding: 15px;
+            padding: 20px;
             color: white;
-            overflow-x: hidden;
         }
         
         .container {
-            max-width: 450px;
+            max-width: 500px;
             margin: 0 auto;
         }
         
         .header {
             text-align: center;
-            margin-bottom: 25px;
-            padding: 25px 20px;
-            background: rgba(255, 255, 255, 0.12);
-            border-radius: 25px;
-            backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
         }
         
         .bot-name {
-            font-size: 36px;
-            font-weight: 800;
+            font-size: 32px;
+            font-weight: bold;
             background: linear-gradient(135deg, #FFD700, #FFA500);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            background-clip: text;
             margin-bottom: 10px;
-            letter-spacing: 1px;
         }
         
         .stars-animation {
-            font-size: 70px;
+            font-size: 60px;
             animation: float 3s ease-in-out infinite;
-            display: inline-block;
         }
         
         @keyframes float {
-            0%, 100% { transform: translateY(0px) rotate(0deg); }
-            25% { transform: translateY(-15px) rotate(-5deg); }
-            75% { transform: translateY(-15px) rotate(5deg); }
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
         }
         
         .title {
-            font-size: 24px;
-            font-weight: 700;
+            font-size: 22px;
+            font-weight: bold;
             margin: 15px 0 10px;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
         
         .subtitle {
             font-size: 14px;
             opacity: 0.9;
-            margin-bottom: 10px;
-            line-height: 1.5;
-            font-weight: 300;
+            margin-bottom: 20px;
+            line-height: 1.4;
         }
         
         .stars-grid {
@@ -155,32 +95,14 @@ class StarsAppHandler(BaseHTTPRequestHandler):
         }
         
         .star-option {
-            background: rgba(255, 255, 255, 0.12);
+            background: rgba(255, 255, 255, 0.15);
             backdrop-filter: blur(10px);
-            border: 2px solid rgba(255, 255, 255, 0.25);
-            border-radius: 20px;
-            padding: 22px 15px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 15px;
+            padding: 20px;
             text-align: center;
             cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .star-option::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
-            opacity: 0;
-            transition: opacity 0.3s;
-        }
-        
-        .star-option:hover::before {
-            opacity: 1;
+            transition: all 0.3s ease;
         }
         
         .star-option:active {
@@ -188,175 +110,111 @@ class StarsAppHandler(BaseHTTPRequestHandler):
         }
         
         .star-option.selected {
-            background: linear-gradient(135deg, rgba(255, 215, 0, 0.35), rgba(255, 165, 0, 0.35));
+            background: linear-gradient(135deg, rgba(255, 215, 0, 0.3), rgba(255, 165, 0, 0.3));
             border-color: #FFD700;
-            box-shadow: 0 0 30px rgba(255, 215, 0, 0.5);
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
             transform: scale(1.05);
         }
         
-        .star-option.selected .star-icon {
-            animation: spin 0.6s ease-in-out;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg) scale(1); }
-            50% { transform: rotate(180deg) scale(1.3); }
-            100% { transform: rotate(360deg) scale(1); }
-        }
-        
         .star-count {
-            font-size: 34px;
-            font-weight: 800;
+            font-size: 32px;
+            font-weight: bold;
             margin-bottom: 5px;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
         
         .star-icon {
-            font-size: 28px;
-            margin-bottom: 8px;
-            display: inline-block;
+            font-size: 24px;
         }
         
-        .price-tag {
-            font-size: 13px;
-            opacity: 0.85;
-            margin-top: 8px;
-            background: rgba(255, 255, 255, 0.2);
-            padding: 4px 12px;
-            border-radius: 20px;
-            display: inline-block;
+        .price {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-top: 5px;
         }
         
         .custom-section {
-            background: rgba(255, 255, 255, 0.12);
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 15px;
             backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 20px;
-            padding: 18px;
-            margin-bottom: 18px;
         }
         
         .custom-label {
             font-size: 14px;
-            margin-bottom: 12px;
+            margin-bottom: 10px;
             opacity: 0.9;
-            text-align: center;
-            font-weight: 500;
         }
         
         .custom-input {
             background: rgba(255, 255, 255, 0.15);
             border: 2px solid rgba(255, 255, 255, 0.3);
-            border-radius: 15px;
-            padding: 14px 18px;
+            border-radius: 12px;
+            padding: 12px 15px;
             width: 100%;
             color: white;
-            font-size: 20px;
+            font-size: 18px;
             text-align: center;
             outline: none;
             transition: all 0.3s;
-            font-weight: 600;
         }
         
         .custom-input::placeholder {
             color: rgba(255, 255, 255, 0.5);
-            font-weight: 400;
         }
         
         .custom-input:focus {
             border-color: #FFD700;
             background: rgba(255, 255, 255, 0.25);
-            box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
         }
         
         .send-button {
             background: linear-gradient(135deg, #FFD700, #FFA500);
             color: #333;
             border: none;
-            border-radius: 18px;
-            padding: 18px;
+            border-radius: 15px;
+            padding: 16px;
             width: 100%;
-            font-size: 20px;
-            font-weight: 700;
+            font-size: 18px;
+            font-weight: bold;
             cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.3s ease;
             text-transform: uppercase;
-            letter-spacing: 2px;
-            box-shadow: 0 8px 25px rgba(255, 165, 0, 0.4);
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .send-button::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 0;
-            height: 0;
-            background: rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            transform: translate(-50%, -50%);
-            transition: width 0.6s, height 0.6s;
-        }
-        
-        .send-button:active::after {
-            width: 300px;
-            height: 300px;
-        }
-        
-        .send-button:not(:disabled):hover {
-            transform: translateY(-3px);
-            box-shadow: 0 12px 35px rgba(255, 165, 0, 0.6);
+            letter-spacing: 1px;
+            box-shadow: 0 5px 15px rgba(255, 165, 0, 0.3);
         }
         
         .send-button:active {
-            transform: translateY(-1px);
+            transform: scale(0.98);
         }
         
         .send-button:disabled {
             background: rgba(255, 255, 255, 0.2);
-            color: rgba(255, 255, 255, 0.5);
+            color: rgba(255, 255, 255, 0.4);
             box-shadow: none;
-            cursor: not-allowed;
         }
         
-        .success-message {
+        .message {
             margin-top: 15px;
             text-align: center;
             font-size: 14px;
             opacity: 0;
-            transition: all 0.5s;
-            transform: translateY(10px);
+            transition: opacity 0.3s;
         }
         
-        .success-message.show {
+        .message.show {
             opacity: 1;
-            transform: translateY(0);
         }
         
         .creator-info {
             text-align: center;
-            margin-top: 25px;
-            padding: 18px;
-            background: rgba(255, 255, 255, 0.12);
-            border-radius: 20px;
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
             backdrop-filter: blur(10px);
-            font-size: 13px;
-            opacity: 0.85;
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            line-height: 1.6;
-        }
-        
-        .heart {
-            color: #FF6B6B;
-            animation: heartbeat 1.5s ease-in-out infinite;
-            display: inline-block;
-        }
-        
-        @keyframes heartbeat {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.2); }
+            font-size: 12px;
+            opacity: 0.8;
         }
     </style>
 </head>
@@ -367,55 +225,53 @@ class StarsAppHandler(BaseHTTPRequestHandler):
             <div class="bot-name">SMALLGIF'S</div>
             <div class="title">Поддержать создателя</div>
             <div class="subtitle">
-                Ваша поддержка помогает развивать бота<br>и добавлять новые функции!
+                Ваша поддержка помогает развивать бота и добавлять новые функции!
             </div>
         </div>
         
         <div class="stars-grid">
-            <div class="star-option" onclick="selectStars(10, this)">
+            <div class="star-option" onclick="selectStars(10, 0.99)">
                 <div class="star-icon">⭐</div>
                 <div class="star-count">10</div>
-                <div class="price-tag">~ 0.99$</div>
+                <div class="price">~ 0.99$</div>
             </div>
-            <div class="star-option" onclick="selectStars(25, this)">
+            <div class="star-option" onclick="selectStars(25, 1.99)">
                 <div class="star-icon">🌟</div>
                 <div class="star-count">25</div>
-                <div class="price-tag">~ 1.99$</div>
+                <div class="price">~ 1.99$</div>
             </div>
-            <div class="star-option" onclick="selectStars(50, this)">
+            <div class="star-option" onclick="selectStars(50, 3.99)">
                 <div class="star-icon">💫</div>
                 <div class="star-count">50</div>
-                <div class="price-tag">~ 3.99$</div>
+                <div class="price">~ 3.99$</div>
             </div>
-            <div class="star-option" onclick="selectStars(100, this)">
+            <div class="star-option" onclick="selectStars(100, 7.99)">
                 <div class="star-icon">✨</div>
                 <div class="star-count">100</div>
-                <div class="price-tag">~ 7.99$</div>
+                <div class="price">~ 7.99$</div>
             </div>
         </div>
         
         <div class="custom-section">
-            <div class="custom-label">💝 Или введите свою сумму:</div>
+            <div class="custom-label">💝 Своя сумма звезд:</div>
             <input type="number" 
                    class="custom-input" 
                    id="customStars" 
-                   placeholder="Количество звезд"
+                   placeholder="Введите количество"
                    min="1"
                    max="10000"
                    oninput="onCustomInput()">
         </div>
         
         <button class="send-button" id="sendButton" disabled onclick="sendStars()">
-            Выберите количество звезд
+            Отправить звезды
         </button>
         
-        <div class="success-message" id="successMessage">
-            ✨ Спасибо за поддержку! Звезды отправлены!
-        </div>
+        <div class="message" id="message"></div>
         
         <div class="creator-info">
-            Создатель бота: <strong>@""" + CREATOR_USERNAME + """</strong><br>
-            <span class="heart">❤️</span> Спасибо, что помогаете развиваться!
+            Создатель: @""" + CREATOR_USERNAME + """<br>
+            Спасибо за вашу поддержку! ❤️
         </div>
     </div>
     
@@ -423,58 +279,42 @@ class StarsAppHandler(BaseHTTPRequestHandler):
         let tg = window.Telegram.WebApp;
         let selectedStars = 0;
         
-        // Расширяем приложение на весь экран
         tg.expand();
         tg.ready();
         
-        // Настройка темы
-        tg.setHeaderColor('#667eea');
-        tg.setBackgroundColor('#667eea');
-        
-        function selectStars(count, element) {
+        function selectStars(count, price) {
             selectedStars = count;
             document.getElementById('customStars').value = '';
             
-            // Убираем выделение со всех кнопок
+            // Обновляем визуальное выделение
             document.querySelectorAll('.star-option').forEach(opt => {
                 opt.classList.remove('selected');
             });
-            
-            // Выделяем выбранную
-            if (element) {
-                element.classList.add('selected');
-            }
+            event.target.closest('.star-option').classList.add('selected');
             
             updateButton();
         }
         
         function onCustomInput() {
-            let input = document.getElementById('customStars');
-            let value = parseInt(input.value);
+            let value = document.getElementById('customStars').value;
+            selectedStars = value ? parseInt(value) : 0;
             
-            if (value && value > 0) {
-                selectedStars = value;
-                document.querySelectorAll('.star-option').forEach(opt => {
-                    opt.classList.remove('selected');
-                });
-            } else {
-                selectedStars = 0;
-            }
+            // Снимаем выделение с preset кнопок
+            document.querySelectorAll('.star-option').forEach(opt => {
+                opt.classList.remove('selected');
+            });
             
             updateButton();
         }
         
         function updateButton() {
             let button = document.getElementById('sendButton');
+            button.disabled = !selectedStars || selectedStars < 1;
             
             if (selectedStars > 0) {
-                button.disabled = false;
                 button.textContent = `Отправить ${selectedStars} ⭐`;
-                button.style.animation = 'pulse 0.6s ease-in-out';
-                setTimeout(() => button.style.animation = '', 600);
             } else {
-                button.disabled = true;
-                button.textContent = 'Выберите количество звезд';
+                button.textContent = 'Отправить звезды';
             }
         }
         
@@ -482,70 +322,51 @@ class StarsAppHandler(BaseHTTPRequestHandler):
             if (!selectedStars || selectedStars < 1) return;
             
             let button = document.getElementById('sendButton');
-            let message = document.getElementById('successMessage');
+            let message = document.getElementById('message');
             
             button.disabled = true;
-            button.textContent = '⏳ Отправка...';
+            button.textContent = 'Отправка...';
             
-            // Отправляем данные в Telegram
-            try {
-                tg.sendData(JSON.stringify({
-                    action: 'send_stars',
-                    amount: selectedStars,
-                    bot: 'SMALLGIF\\'S'
-                }));
-                
-                // Показываем сообщение об успехе
-                message.classList.add('show');
-                
-                // Восстанавливаем кнопку
-                button.textContent = '✅ Отправлено!';
-                button.style.background = 'linear-gradient(135deg, #4CAF50, #45a049)';
-                
-                // Закрываем мини-приложение
-                setTimeout(() => {
-                    tg.close();
-                }, 2000);
-                
-            } catch (error) {
-                button.disabled = false;
-                button.textContent = '❌ Ошибка, попробуйте снова';
-                console.error('Error sending stars:', error);
-            }
+            // Отправляем данные в бота
+            tg.sendData(JSON.stringify({
+                action: 'send_stars',
+                amount: selectedStars
+            }));
+            
+            // Показываем сообщение
+            message.textContent = '✨ Спасибо за поддержку! Звезды отправлены!';
+            message.classList.add('show');
+            
+            // Закрываем мини-приложение через 2 секунды
+            setTimeout(() => {
+                tg.close();
+            }, 2000);
         }
         
-        // Обработка нажатия клавиши Enter в поле ввода
-        document.getElementById('customStars').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter' && selectedStars > 0) {
-                sendStars();
-            }
-        });
+        // Устанавливаем тему
+        tg.setHeaderColor('#667eea');
+        tg.setBackgroundColor('#667eea');
     </script>
 </body>
 </html>
 """
-    
-    def log_message(self, format, *args):
-        pass  # Отключаем логи HTTP запросов
 
 class SmallGIFsBot:
     def __init__(self):
         self.user_searches = {}
+        self.stars_app_url = None
         
     async def start(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Обработчик команды /start"""
-        welcome_text = """
-🎬 <b>SMALLGIF'S</b> - Ваш персональный GIF-поисковик!
-
-🚀 <b>Как использовать:</b>
-• В любом чате: <code>@{bot_username} запрос</code>
-• Команда: /search запрос
-• Поддержка: /support
-
-💡 <b>Пример:</b> <code>@{bot_username} смешной кот</code>
-
-✨ Создатель: @{creator}
-        """.format(
+        welcome_text = (
+            "🎬 <b>SMALLGIF'S</b> - Ваш персональный GIF-поисковик!\n\n"
+            "🚀 <b>Как использовать:</b>\n"
+            "• В любом чате напишите: @{bot_username} запрос\n"
+            "• Или используйте команду: /search запрос\n"
+            "• Для поддержки: /support\n\n"
+            "💡 <b>Пример:</b> @{bot_username} смешной кот\n\n"
+            "✨ Создатель: @{creator}"
+        ).format(
             bot_username=context.bot.username,
             creator=CREATOR_USERNAME
         )
@@ -573,10 +394,6 @@ class SmallGIFsBot:
             return
         
         await self.show_gif_results(update, context, query)
-    
-    async def support_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
-        """Обработчик команды /support"""
-        await self.show_support_message(update, context)
     
     async def search_gifs(self, query: str, limit: int = 20) -> list:
         """Поиск GIF через Giphy API"""
@@ -622,18 +439,18 @@ class SmallGIFsBot:
                 await self.show_gif_results(update, context, query)
             else:
                 keyboard = [
-                    [InlineKeyboardButton("🔍 Открыть SMALLGIF'S", switch_inline_query_current_chat="")]
+                    [InlineKeyboardButton("🔍 Открыть поиск", switch_inline_query_current_chat="")]
                 ]
                 await update.message.reply_text(
-                    f"🎬 <b>SMALLGIF'S</b> к вашим услугам!\n"
-                    f"Напишите запрос после упоминания:\n"
-                    f"<code>@{bot_username} ваш запрос</code>",
+                    "🎬 <b>SMALLGIF'S</b> к вашим услугам!\n"
+                    "Напишите запрос после упоминания:\n"
+                    "<code>@{bot} ваш запрос</code>".format(bot=bot_username),
                     reply_markup=InlineKeyboardMarkup(keyboard),
                     parse_mode='HTML'
                 )
     
     async def show_gif_results(self, update: Update, context: ContextTypes.DEFAULT_TYPE, query: str, page: int = 0):
-        """Показать результаты поиска GIF"""
+        """Показать результаты поиска GIF с кнопкой поддержки"""
         user_id = update.effective_user.id
         self.user_searches[user_id] = {"query": query, "page": page}
         
@@ -646,7 +463,7 @@ class SmallGIFsBot:
         
         if not gifs:
             await status_message.edit_text(
-                "😕 GIF не найдены.\nПопробуйте другой запрос.",
+                "😕 GIF не найдены. Попробуйте другой запрос.",
                 parse_mode='HTML'
             )
             return
@@ -688,11 +505,17 @@ class SmallGIFsBot:
         
         reply_markup = InlineKeyboardMarkup(keyboard)
         
+        # Создаем красивое сообщение с превью
+        gifs_list = []
+        for i, gif in enumerate(page_gifs, 1):
+            title = gif['title'][:50] if gif['title'] else 'GIF'
+            gifs_list.append(f"{start_idx + i}. <a href='{gif['preview']}'>{title}</a>")
+        
         message_text = (
             f"🎬 <b>SMALLGIF'S</b>\n"
-            f"🔍 Результаты: <b>{query}</b>\n"
+            f"🔍 Результаты по запросу: <b>{query}</b>\n"
             f"📄 Страница {page + 1}\n\n"
-            f"Нажмите на кнопку, чтобы отправить GIF"
+            f"Нажмите на кнопку, чтобы отправить GIF:\n\n"
         )
         
         await status_message.edit_text(
@@ -717,11 +540,13 @@ class SmallGIFsBot:
             try:
                 await query.message.reply_animation(
                     animation=gif_url,
-                    caption=f"🎬 GIF от SMALLGIF'S\n🔍 @{context.bot.username}"
+                    caption=f"🎬 GIF от SMALLGIF'S\n🔍 Найдено @{context.bot.username}"
                 )
             except Exception as e:
                 logger.error(f"Error sending GIF: {e}")
-                await query.message.reply_text("❌ Не удалось отправить GIF. Попробуйте другой.")
+                await query.message.reply_text(
+                    "❌ Не удалось отправить GIF. Попробуйте другой."
+                )
         
         elif callback_data.startswith("page_"):
             new_page = int(callback_data.replace("page_", ""))
@@ -730,11 +555,7 @@ class SmallGIFsBot:
             if user_data:
                 await query.message.delete()
                 fake_message = query.message
-                fake_update = type('obj', (object,), {
-                    'effective_user': update.effective_user,
-                    'message': fake_message
-                })
-                await self.show_gif_results(fake_update, context, user_data["query"], new_page)
+                await self.show_gif_results_inline(fake_message, context, user_data["query"], new_page)
         
         elif callback_data.startswith("refresh_"):
             search_query = callback_data.replace("refresh_", "")
@@ -743,33 +564,82 @@ class SmallGIFsBot:
             if user_data:
                 await query.message.delete()
                 fake_message = query.message
-                fake_update = type('obj', (object,), {
-                    'effective_user': update.effective_user,
-                    'message': fake_message
-                })
-                await self.show_gif_results(fake_update, context, search_query, user_data.get("page", 0))
+                await self.show_gif_results_inline(fake_message, context, search_query, user_data.get("page", 0))
         
         elif callback_data == "show_support":
-            await self.show_support_message(query, context)
+            await self.show_support_message(query)
     
-    async def show_support_message(self, update_or_query, context=None):
-        """Показать сообщение поддержки"""
-        support_text = """
-⭐ <b>Поддержать SMALLGIF'S</b>
-
-Ваша поддержка помогает развивать бота!
-Вы можете отправить Telegram Stars создателю.
-
-👇 Нажмите кнопку ниже:
-        """
+    async def show_gif_results_inline(self, message, context, query, page=0):
+        """Обновление результатов поиска (для callback)"""
+        gifs = await self.search_gifs(query)
         
-        # URL для мини-приложения (замените на ваш PythonAnywhere URL)
-        app_url = f"https://mrbaget228.pythonanywhere.com"
+        if not gifs:
+            await message.reply_text("😕 GIF не найдены. Попробуйте другой запрос.")
+            return
+        
+        keyboard = []
+        gifs_per_page = 8
+        start_idx = page * gifs_per_page
+        end_idx = start_idx + gifs_per_page
+        page_gifs = gifs[start_idx:end_idx]
+        
+        for i in range(0, len(page_gifs), 2):
+            row = []
+            for j in range(2):
+                if i + j < len(page_gifs):
+                    gif = page_gifs[i + j]
+                    row.append(InlineKeyboardButton(
+                        f"GIF {start_idx + i + j + 1}",
+                        callback_data=f"send_gif_{gif['id']}"
+                    ))
+            if row:
+                keyboard.append(row)
+        
+        nav_row = []
+        if page > 0:
+            nav_row.append(InlineKeyboardButton("⬅️ Назад", callback_data=f"page_{page-1}"))
+        nav_row.append(InlineKeyboardButton("🔄 Обновить", callback_data=f"refresh_{query}"))
+        if len(gifs) > end_idx:
+            nav_row.append(InlineKeyboardButton("➡️ Далее", callback_data=f"page_{page+1}"))
+        
+        if nav_row:
+            keyboard.append(nav_row)
+        
+        keyboard.append([
+            InlineKeyboardButton("⭐ Поддержать создателя", callback_data="show_support")
+        ])
+        
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        
+        message_text = (
+            f"🎬 <b>SMALLGIF'S</b>\n"
+            f"🔍 Результаты по запросу: <b>{query}</b>\n"
+            f"📄 Страница {page + 1}\n\n"
+            f"Нажмите на кнопку для отправки GIF"
+        )
+        
+        await message.reply_text(
+            message_text,
+            reply_markup=reply_markup,
+            parse_mode='HTML'
+        )
+    
+    async def show_support_message(self, query):
+        """Показать сообщение поддержки с мини-приложением"""
+        support_text = (
+            "⭐ <b>Поддержать SMALLGIF'S</b>\n\n"
+            "Ваша поддержка помогает развивать бота!\n"
+            "Вы можете отправить Telegram Stars создателю.\n\n"
+            "👇 Нажмите кнопку ниже, чтобы открыть меню поддержки:"
+        )
+        
+        # Создаем WebApp кнопку
+        web_app_url = f"https://your-domain.com/stars-app"  # URL вашего веб-приложения
         
         keyboard = [
             [InlineKeyboardButton(
                 "💝 Отправить звезды", 
-                web_app=WebAppInfo(url=app_url)
+                web_app=WebAppInfo(url=web_app_url)
             )],
             [InlineKeyboardButton(
                 "💰 Купить звезды", 
@@ -777,18 +647,11 @@ class SmallGIFsBot:
             )]
         ]
         
-        if hasattr(update_or_query, 'message'):
-            await update_or_query.message.reply_text(
-                support_text,
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode='HTML'
-            )
-        else:
-            await update_or_query.message.reply_text(
-                support_text,
-                reply_markup=InlineKeyboardMarkup(keyboard),
-                parse_mode='HTML'
-            )
+        await query.message.reply_text(
+            support_text,
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode='HTML'
+        )
     
     async def web_app_data(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Обработчик данных из мини-приложения"""
@@ -797,36 +660,25 @@ class SmallGIFsBot:
         if data.get('action') == 'send_stars':
             amount = data.get('amount', 0)
             
-            # Отправляем подтверждение
+            # Отправляем инвойс на Stars
             await update.effective_message.reply_text(
                 f"✨ <b>Спасибо за поддержку!</b>\n\n"
                 f"Вы отправили: <b>{amount} ⭐</b>\n"
                 f"Создатель: @{CREATOR_USERNAME}\n\n"
-                f"💝 Ваша поддержка очень важна для SMALLGIF'S!\n"
-                f"Благодаря вам бот будет становиться лучше!",
+                f"💝 Ваша поддержка очень важна для развития SMALLGIF'S!",
                 parse_mode='HTML'
             )
             
-            # Здесь можно добавить логику реальной оплаты
+            # Здесь можно добавить логику для реальной оплаты через Telegram Stars API
     
     def run(self):
-        """Запуск бота и веб-сервера"""
-        # Запускаем веб-сервер в отдельном потоке
-        web_server = HTTPServer(('0.0.0.0', PORT), StarsAppHandler)
-        web_thread = Thread(target=web_server.serve_forever)
-        web_thread.daemon = True
-        web_thread.start()
-        
-        print(f"🌐 Веб-сервер запущен на порту {PORT}")
-        print(f"📱 URL мини-приложения: https://mrbaget228.pythonanywhere.com")
-        
-        # Запускаем бота
+        """Запуск бота"""
         application = Application.builder().token(BOT_TOKEN).build()
         
         # Добавляем обработчики
         application.add_handler(CommandHandler("start", self.start))
         application.add_handler(CommandHandler("search", self.search_command))
-        application.add_handler(CommandHandler("support", self.support_command))
+        application.add_handler(CommandHandler("support", lambda u, c: self.show_support_message(u.callback_query if u.callback_query else None)))
         application.add_handler(MessageHandler(
             filters.TEXT & ~filters.COMMAND & filters.Entity("mention"), 
             self.handle_mention
@@ -837,28 +689,9 @@ class SmallGIFsBot:
         # Запускаем бота
         print("🚀 SMALLGIF'S бот запущен!")
         print(f"🤖 Бот: @{application.bot.username}")
-        print("=" * 50)
-        
-        # Используем webhook для лучшей производительности
-        # или polling для тестирования
+        print("=" * 40)
         application.run_polling(allowed_updates=Update.ALL_TYPES)
 
-def run_web_server():
-    """Отдельная функция для запуска веб-сервера"""
-    server = HTTPServer(('0.0.0.0', PORT), StarsAppHandler)
-    print(f"🌐 Stars App доступен на порту {PORT}")
-    server.serve_forever()
-
 if __name__ == "__main__":
-    # Проверяем наличие токенов
-    if BOT_TOKEN == "8678518649:AAHjfB6Z9QTytmSRej2hDbV3hxGbokY1wdc":
-        print("❌ Ошибка: Укажите BOT_TOKEN в коде!")
-        exit(1)
-    if GIPHY_API_KEY == "YOUR_GIPHY_API_KEY":
-        print("❌ Ошибка: Укажите GIPHY_API_KEY в коде!")
-        exit(1)
-    if CREATOR_USERNAME == "lilmopss":
-        print("⚠️ Предупреждение: Укажите CREATOR_USERNAME в коде!")
-    
     bot = SmallGIFsBot()
     bot.run()
