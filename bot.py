@@ -6,6 +6,7 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from threading import Thread
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from telegram.ext import Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
+from keep_alive import run_keep_aliv
 
 # Настройка логирования
 logging.basicConfig(
